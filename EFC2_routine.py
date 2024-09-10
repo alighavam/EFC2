@@ -59,7 +59,7 @@ def subject_routine(subject, smoothing_window=30, fs=500):
 
                 # add the mov trial in the move dataframe:
                 tmp = pd.DataFrame({'day': int(d[-1]), 'sn': subject, 'BN': dat['BN'][i], 'TN': dat['TN'][i], 'trial_correct':dat['trialCorr'][i], 
-                                    'mov': np.array(mov[dat['TN'][i]-1])})
+                                    'mov': np.array(mov[dat[(dat['BN']==oldblock) & (dat['TN']==i+1)]][:])})
                 df_mov = pd.concat([df_mov, tmp],ignore_index=True)
 
 subject_routine(100)
