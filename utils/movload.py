@@ -11,7 +11,7 @@ def movload(fname):
     trial = 0
     for line in fid:
         if line[0] == 'T':
-            print('Trial: ', line.split()[1])
+            #print('Trial: ', line.split()[1])
             a = int(line.split()[1])
             trial += 1
             if a != trial:
