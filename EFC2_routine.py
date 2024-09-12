@@ -42,7 +42,7 @@ def subject_routine(subject, smoothing_window=30, fs=500):
         # Loop through the days:
         days_dir = [entry.name for entry in os.scandir(sub_dir) if entry.is_dir()]
         for d in days_dir:
-            #print(f'=============== {d} ===============')
+            print(f'=============== {d} ===============')
             # Load the .dat file:
             dat_file_name = os.path.join(sub_dir,d, f'efc2_{subject}.dat')
             dat = pd.read_csv(dat_file_name, sep='\t')
