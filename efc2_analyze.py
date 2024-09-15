@@ -19,7 +19,6 @@ def subject_routine(subject: list[int], smoothing_window: int = 30, fs: int = 50
     for i in subject:
         efc2_routine.subject_routine(i, smoothing_window, fs)
 
-
 def make_all_dataframe(fs: int = 500, hold_time: float = 600):
     """
     Goes through all the preprocessed data and creates a flat .csv dataframe where each row is one trial. 
@@ -79,10 +78,32 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
 
         # Concatenate the dataframe to df:
         df = pd.concat([df, data], ignore_index=True)
-    
+
+
+    # add participant groups:
+    participants_tsv = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['subNum','group'])
+    df = pd.merge(df, participants_tsv, on='subNum', how='left')
+
+    df.rename(columns={'subNum':'sn'},inplace=True)
+    df = reorder_dataframe(df)
+
     # Save the dataframe:
     df.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'), index=False)
 
+def reorder_dataframe(df):
+    '''
+    reorders the dataframe columns to make it more readable
+    '''
+    
+    order = ['day', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'is_test', 'RT', 'ET', 'MD', 
+             'planTime', 'execMaxTime', 'feedbackTime', 'iti', 
+             'fGain1', 'fGain2', 'fGain3', 'fGain4', 'fGain5', 'forceGain', 
+             'baselineTopThresh', 'extTopThresh', 'extBotThresh', 'flexTopThresh', 'flexBotThresh']
+    
+    df = df[order]
+    df.reset_index(drop=True, inplace=True)
+    
+    return df
     
 
 
