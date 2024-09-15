@@ -64,7 +64,7 @@ def subject_routine(subject, smoothing_window=30, fs=500):
                 
                 # building the day and is_test columns for df:
                 day.append(int(d[-1]))
-                is_test.append(dir == 'testing')
+                is_test.append(int(dir == 'testing'))
 
                 # add the mov trial in the move dataframe:
                 tmp = pd.DataFrame({'day': int(d[-1]), 'sn': subject, 'BN': dat['BN'][i], 'TN': dat['TN'][i], 'trial_correct':dat['trialCorr'][i], 
@@ -81,6 +81,8 @@ def subject_routine(subject, smoothing_window=30, fs=500):
 
     # save the data frames:
     df.to_csv(os.path.join(ANALYSIS_PATH, f'efc2_{subject}.csv'), index=False)
+    
+    df_mov.reset_index(drop=True, inplace=True)
     df_mov.to_pickle(os.path.join(ANALYSIS_PATH, f'efc2_{subject}_mov.pkl'))
     
     return df, df_mov
