@@ -1,4 +1,5 @@
 import os
+import re
 import fnmatch
 import numpy as np
 import pandas as pd
@@ -30,7 +31,8 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
     """
 
     # Get file names:
-    files = sorted([f for f in os.listdir(ANALYSIS_PATH) if fnmatch.fnmatch(f, 'efc2_*.csv')])
+    name_pattern = re.compile(r'efc2_\d+\.csv')
+    files = sorted([f for f in os.listdir(ANALYSIS_PATH) if name_pattern.match(f)])
     movFiles = sorted([f for f in os.listdir(ANALYSIS_PATH) if fnmatch.fnmatch(f, 'efc2_*_mov.pkl')])
 
     # Create an empty dataframe:
@@ -81,7 +83,8 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
 
 
     # add participant groups:
-    participants_tsv = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['subNum','group'])
+    participants_tsv = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['Subject number','group'])
+    participants_tsv = participants_tsv.rename(columns={'Subject number':'subNum'})
     df = pd.merge(df, participants_tsv, on='subNum', how='left')
 
     df.rename(columns={'subNum':'sn'},inplace=True)
