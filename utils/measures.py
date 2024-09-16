@@ -97,8 +97,12 @@ def get_MD(mov: np.ndarray, baseline_threshold: float, fGain: list[float], globa
 
     # calculate mean deviation:
     deviation = []
-    for i in range(force.shape[0]):
-        projection = np.dot(force[i, :], c) / np.dot(c, c) * c
-        deviation.append(np.linalg.norm(force[i, :] - projection))
+    for i in range(1,force.shape[0]):
+        # force vector:
+        tmp_force = force[i, :] - force[0, :]
+        # projection:
+        projection = np.dot(tmp_force, c) / np.dot(c, c) * c
+        # deviation:
+        deviation.append(np.linalg.norm(tmp_force - projection))
 
     return np.mean(deviation)
