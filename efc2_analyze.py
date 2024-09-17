@@ -156,6 +156,8 @@ def should_I_trust_this_data(ana):
     days = ana['day'].unique()
     BN = ana['BN'].unique()
 
+    red_flags = 0
+
     for sn in subjects:
         print(f'=========== subject {sn} ===========')
         for day in days:
@@ -163,8 +165,11 @@ def should_I_trust_this_data(ana):
             for bn in BN:
                 tn = ana['TN'][(ana['sn'] == sn) & (ana['day'] == day) & (ana['BN'] == bn)]
                 if len(tn) != 50:
+                    red_flags += 1
                     print(f'*********************************************** ERROR IN NEXT LINE:')
                 print(f'sn: {sn}, day: {day}, BN: {bn}, TN: {len(tn)}')
+    
+    print(f'==== number of red flags: {red_flags} ====')
         
 
 
