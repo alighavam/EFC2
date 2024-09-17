@@ -46,7 +46,7 @@ def subject_routine(subject, smoothing_window=30, fs=500):
             # Load the .dat file:
             dat_file_name = os.path.join(sub_dir,d, f'efc2_{subject}.dat')
             dat = pd.read_csv(dat_file_name, sep='\t')
-
+            
             oldblock = -1
             # loop on trials:
             for i in range(dat.shape[0]):
