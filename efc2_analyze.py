@@ -49,13 +49,28 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
         # Load the .mov file:
         mov = pd.read_pickle(os.path.join(ANALYSIS_PATH, movFiles[i]))
 
-        # empty lists to store the RT, ET, MD values:
+        # empty lists to store values:
         RT = []
         ET = []
         MD = []
+        trained_flag = []
 
+        # load participant info to add trained or untrained flag to chords:
+        participants_info = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['Subject number','trained','untrained'])
+        participants_info = participants_info.rename(columns={'Subject number':'subNum'})
+        trained_chords = participants_info['trained'][participants_info['subNum']==data['subNum'].iloc[0]].values[0].split('.')
+        trained_chords = [int(i) for i in trained_chords]
+        untrained_chords = participants_info['untrained'][participants_info['subNum']==data['subNum'].iloc[0]].values[0].split('.')
+        untrained_chords = [int(i) for i in untrained_chords]
+        
         # Loop through the trials:
         for j in range(data.shape[0]):
+            # add trained or untrained chord flag:
+            if data['chordID'].iloc[j] in trained_chords:
+                trained_flag.append(1)
+            elif data['chordID'].iloc[j] in untrained_chords:
+                trained_flag.append(0)
+
             # if trial was correct
             if data['trial_correct'][j]:
                 fGain = [data['fGain1'].iloc[j], data['fGain2'].iloc[j], data['fGain3'].iloc[j], data['fGain4'].iloc[j], data['fGain5'].iloc[j]]
@@ -65,7 +80,6 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
                 ET.append(utils.measures.get_ET(mov['mov'].iloc[j]))
                 MD.append(utils.measures.get_MD(mov['mov'].iloc[j], data['baselineTopThresh'].iloc[j], fGain, data['forceGain'].iloc[j], 
                                                 fs, hold_time))
-
             else:
                 RT.append(-1)
                 ET.append(-1)
@@ -77,15 +91,16 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
         data['RT'] = RT
         data['ET'] = ET
         data['MD'] = MD
+        data['trained'] = trained_flag
 
         # Concatenate the dataframe to df:
         df = pd.concat([df, data], ignore_index=True)
 
 
     # add participant groups:
-    participants_tsv = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['Subject number','group'])
-    participants_tsv = participants_tsv.rename(columns={'Subject number':'subNum'})
-    df = pd.merge(df, participants_tsv, on='subNum', how='left')
+    participants_info = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['Subject number','group'])
+    participants_info = participants_info.rename(columns={'Subject number':'subNum'})
+    df = pd.merge(df, participants_info, on='subNum', how='left')
 
     df.rename(columns={'subNum':'sn'},inplace=True)
     df = reorder_dataframe(df)
@@ -98,7 +113,7 @@ def reorder_dataframe(df):
     reorders the dataframe columns to make it more readable
     '''
     
-    order = ['day', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'is_test', 'RT', 'ET', 'MD', 
+    order = ['day', 'is_test', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'trained', 'RT', 'ET', 'MD', 
              'planTime', 'execMaxTime', 'feedbackTime', 'iti', 
              'fGain1', 'fGain2', 'fGain3', 'fGain4', 'fGain5', 'forceGain', 
              'baselineTopThresh', 'extTopThresh', 'extBotThresh', 'flexTopThresh', 'flexBotThresh']
@@ -108,8 +123,49 @@ def reorder_dataframe(df):
     
     return df
     
+def performance_improvement(df, plot=False, repetitions=5):
+    '''
+    Creates a dataframe for the improvement of measures across days.
+    The performance is averaged within trained and untrained chords.
+    '''
 
+    ANA = pd.DataFrame()
 
+    # add a repetition column the size of the dataframe:
+    df['repetition'] = np.tile(np.arange(1, repetitions+1), (1,int(df.shape[0]/repetitions))).flatten()
+    df.replace(-1, np.nan, inplace=True)
+
+    # loop through the subjects:
+    subjects = df['sn'].unique()
+    days = df['day'].unique()
+    
+    # make summary dataframe:
+    ANA = df.groupby(['day','sn','trained','repetition'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+
+    # save the ANA dataframe:
+    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_performance_improvement.csv'), index=False)
+
+    return ANA
+
+def should_I_trust_this_data(ana):
+    '''
+    Well, should you? Run this function, look carefully, and find out!
+    '''
+
+    subjects = ana['sn'].unique()
+    days = ana['day'].unique()
+    BN = ana['BN'].unique()
+
+    for sn in subjects:
+        print(f'=========== subject {sn} ===========')
+        for day in days:
+            print(f'----- {day} -----')
+            for bn in BN:
+                tn = ana['TN'][(ana['sn'] == sn) & (ana['day'] == day) & (ana['BN'] == bn)]
+                if len(tn) != 50:
+                    print(f'*********************************************** ERROR IN NEXT LINE:')
+                print(f'sn: {sn}, day: {day}, BN: {bn}, TN: {len(tn)}')
+        
 
 
     
