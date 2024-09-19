@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from utils.movload import movload
-from config import *
+from utils.config import *
 
 def trial_routine(row):
     '''

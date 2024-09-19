@@ -6,6 +6,7 @@ WORKING_DIRECTORY = os.getcwd()
 
 DATA_PATH = WORKING_DIRECTORY + '/data/'
 ANALYSIS_PATH = WORKING_DIRECTORY + '/analysis/'
+FIGURE_PATH = WORKING_DIRECTORY + '/figures/'
 
 # If on server:
 if platform.system() == 'Linux':

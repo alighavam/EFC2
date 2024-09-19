@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import efc2_routine
 import utils
-from config import *
+from utils.config import *
 
 def subject_routine(subject: list[int], smoothing_window: int = 30, fs: int = 500):
     """
@@ -122,30 +122,6 @@ def reorder_dataframe(df):
     df.reset_index(drop=True, inplace=True)
     
     return df
-    
-def performance_improvement(df, plot=False, repetitions=5):
-    '''
-    Creates a dataframe for the improvement of measures across days.
-    The performance is averaged within trained and untrained chords.
-    '''
-
-    ANA = pd.DataFrame()
-
-    # add a repetition column the size of the dataframe:
-    df['repetition'] = np.tile(np.arange(1, repetitions+1), (1,int(df.shape[0]/repetitions))).flatten()
-    df.replace(-1, np.nan, inplace=True)
-
-    # loop through the subjects:
-    subjects = df['sn'].unique()
-    days = df['day'].unique()
-    
-    # make summary dataframe:
-    ANA = df.groupby(['day','sn','trained','repetition'])[['is_test','group','RT','ET','MD']].mean().reset_index()
-
-    # save the ANA dataframe:
-    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_performance_improvement.csv'), index=False)
-
-    return ANA
 
 def should_I_trust_this_data(ana):
     '''
@@ -170,6 +146,30 @@ def should_I_trust_this_data(ana):
                 print(f'sn: {sn}, day: {day}, BN: {bn}, TN: {len(tn)}')
     
     print(f'==== number of red flags: {red_flags} ====')
+
+def collapse_chords(df, repetitions=5):
+    '''
+    Creates a dataframe for the improvement of measures across days.
+    The performance is averaged within trained and untrained chords separately for each participant.
+    '''
+
+    ANA = pd.DataFrame()
+
+    # add a repetition column the size of the dataframe:
+    df['repetition'] = np.tile(np.arange(1, repetitions+1), (1,int(df.shape[0]/repetitions))).flatten()
+    df.replace(-1, np.nan, inplace=True)
+    
+    # make summary dataframe:
+    ANA = df.groupby(['day','sn','trained','repetition'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+
+    ANA['adjusted_repetition'] = (ANA['day']-1)*repetitions + ANA['repetition']
+
+    # save the ANA dataframe:
+    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_collapse_chords.csv'), index=False)
+
+    return ANA
+
+
         
 
 
