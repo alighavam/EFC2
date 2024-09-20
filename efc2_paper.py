@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from utils.figure_style import my_paper
+from statsmodels.stats.anova import AnovaRM
+from scipy import stats
 
 def learning_figure(ana, measure='MD', fig_size=[8.2, 6], show_plot=False):
     '''
@@ -82,3 +84,42 @@ def learning_figure(ana, measure='MD', fig_size=[8.2, 6], show_plot=False):
         plt.show()
     else:
         plt.close(fig)
+
+
+    # statistical tests:
+    # REPETITIONS AVERAGED:
+    print('========= '+measure+' STATS: repetitions averaged =========')
+    grouped = ana.groupby(['day', 'trained', 'sn']).mean(['MD','RT','ET']).reset_index()
+
+    # Percent improvement from day 1 to day 5:
+    print(f'Percent improvement from day 1 to day 5:')
+    imprv_trained = grouped[(grouped['day']==1) & (grouped['trained']==1)][measure] - grouped[(grouped['day']==5) & (grouped['trained']==1)][measure]
+    imprv_untrained = grouped[(grouped['day']==1) & (grouped['trained']==0)][measure] - grouped[(grouped['day']==5) & (grouped['trained']==0)][measure]
+    print()
+
+    # ANOVA day1 vs. day5:
+    tmp_df = grouped[(grouped['day']==1) | (grouped['day']==5)]
+    anova = AnovaRM(data=tmp_df, depvar=measure, subject='sn', within=['day', 'trained']).fit()
+    anova_table = anova.anova_table
+    anova_table['Pr > F'] = anova_table['Pr > F'].apply(lambda p: f'{p:.6f}')
+    anova_table['F Value'] = anova_table['F Value'].apply(lambda f: f'{f:.6f}')
+    # Print the formatted table
+    print(anova_table)
+    print()
+
+    # t-tests:
+    print('day 1, trained vs. untrained:')
+    day1_trained = grouped[(grouped['day']==1) & (grouped['trained']==1)][measure]
+    day1_untrained = grouped[(grouped['day']==1) & (grouped['trained']==0)][measure]
+    res = stats.ttest_rel(day1_trained, day1_untrained)
+    print(f't_{len(day1_trained)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+
+    print('day 5, trained vs. untrained:')
+    day5_trained = grouped[(grouped['day']==5) & (grouped['trained']==1)][measure]
+    day5_untrained = grouped[(grouped['day']==5) & (grouped['trained']==0)][measure]
+    res = stats.ttest_rel(day5_trained, day5_untrained)
+    print(f't_{len(day5_trained)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print()
+
+    # REPETITIONS SEPARATE:
+    print('========= '+measure+' STATS: repetitions separate =========')
