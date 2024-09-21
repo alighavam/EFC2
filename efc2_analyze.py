@@ -6,6 +6,7 @@ import pandas as pd
 import efc2_routine
 import utils
 from utils.config import *
+import utils.please
 
 def subject_routine(subject: list[int], smoothing_window: int = 30, fs: int = 500):
     """
@@ -53,6 +54,8 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
         RT = []
         ET = []
         MD = []
+        press_seq = []
+        press_direction = []
         trained_flag = []
 
         # load participant info to add trained or untrained flag to chords:
@@ -80,10 +83,17 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
                 ET.append(utils.measures.get_ET(mov['mov'].iloc[j]))
                 MD.append(utils.measures.get_MD(mov['mov'].iloc[j], data['baselineTopThresh'].iloc[j], fGain, data['forceGain'].iloc[j], 
                                                 fs, hold_time))
+                tmp_seq, tmp_dir, tmp_time = utils.measures.get_press_sequence(mov['mov'].iloc[j], data['baselineTopThresh'].iloc[j], 
+                                                                               fGain, data['forceGain'].iloc[j], fs, hold_time)
+                press_seq.append(utils.please.list_to_int(tmp_seq))
+                press_direction.append(''.join(tmp_dir))
+
             else:
                 RT.append(-1)
                 ET.append(-1)
                 MD.append(-1)
+                press_seq.append(-1)
+                press_direction.append('n')
 
         data.drop(columns=['RT','trialPoint'], inplace=True)
 
@@ -91,12 +101,13 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
         data['RT'] = RT
         data['ET'] = ET
         data['MD'] = MD
+        data['press_seq'] = press_seq
+        data['press_direction'] = press_direction
         data['trained'] = trained_flag
 
         # Concatenate the dataframe to df:
         df = pd.concat([df, data], ignore_index=True)
-
-
+    
     # add participant groups:
     participants_info = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['Subject number','group'])
     participants_info = participants_info.rename(columns={'Subject number':'subNum'})
@@ -113,7 +124,7 @@ def reorder_dataframe(df):
     reorders the dataframe columns to make it more readable
     '''
     
-    order = ['day', 'is_test', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'trained', 'RT', 'ET', 'MD', 
+    order = ['day', 'is_test', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'trained', 'RT', 'ET', 'MD', 'press_seq', 'press_direction',
              'planTime', 'execMaxTime', 'feedbackTime', 'iti', 
              'fGain1', 'fGain2', 'fGain3', 'fGain4', 'fGain5', 'forceGain', 
              'baselineTopThresh', 'extTopThresh', 'extBotThresh', 'flexTopThresh', 'flexBotThresh']
