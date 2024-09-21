@@ -106,3 +106,66 @@ def get_MD(mov: np.ndarray, baseline_threshold: float, fGain: list[float], globa
         deviation.append(np.linalg.norm(tmp_force - projection))
 
     return np.mean(deviation)
+
+
+import numpy as np
+
+def get_press_sequence(mov: np.ndarray, baseline_threshold: float, fGain: list[float], global_gain: float, fs: int, hold_time: float):
+    """
+    Detects the sequence of finger presses based on a threshold.
+
+    params:
+        
+
+    returns:
+        
+    """
+
+    WAIT_EXEC = 3
+
+    # find the beginning of the execution period:
+    start_idx = np.where(mov[:, 0] == WAIT_EXEC)[0][0]
+    end_idx = np.where(mov[:, 0] == WAIT_EXEC)[0][-1]
+
+    # get the differential forces - five columns:
+    force = mov[:, 13:18]
+    
+    # apply the gains:
+    force = force * fGain * global_gain
+    # select the portion of force from start of executin phase to end_idx-hold_time:
+    force = force[start_idx:end_idx-int(hold_time/1000*fs), :]
+    
+    # seuqneces of fingers pressed, e.g., 121345:
+    seq = []
+    # direction of each press, e.g., feffee
+    press_dir = []
+    # time of each press:
+    press_time = []
+    
+    # Get the number of time points (t) and number of fingers (5)
+    t, num_fingers = force.shape
+    
+    # Initialize a boolean array to track whether each finger was below the threshold
+    below_threshold = np.ones(num_fingers, dtype=bool)
+    
+    # Loop through the time points
+    for i in range(t):
+        for finger in range(num_fingers):
+            # Check if the force exceeds the threshold and if the finger was previously below the threshold
+            tmp_force = np.abs(force[i, finger])
+            if tmp_force > baseline_threshold and below_threshold[finger]:
+                # Add the finger index (1-based) to the press sequence
+                seq.append(finger + 1)
+                # Add the direction of the press to the press direction sequence:
+                press_dir.append('f' if force[i, finger] < 0 else 'e')
+                # Add the time of the press to the press time sequence:
+                press_time.append(mov[start_idx+i, 2])
+
+                # Mark this finger as having crossed the threshold
+                below_threshold[finger] = False
+            # Reset the below_threshold state if the force goes below the threshold again
+            elif tmp_force <= baseline_threshold:
+                below_threshold[finger] = True
+    
+    return seq, press_dir, press_time
+    
