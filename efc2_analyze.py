@@ -107,7 +107,7 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
 
         # Concatenate the dataframe to df:
         df = pd.concat([df, data], ignore_index=True)
-    
+
     # add participant groups:
     participants_info = pd.read_csv(os.path.join(DATA_PATH, 'participants.tsv'), sep='\t', usecols=['Subject number','group'])
     participants_info = participants_info.rename(columns={'Subject number':'subNum'})
