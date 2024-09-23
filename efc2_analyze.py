@@ -158,12 +158,12 @@ def should_I_trust_this_data(ana):
     
     print(f'==== number of red flags: {red_flags} ====')
 
-def collapse_chords(df, repetitions=5):
+def repetition_dataframe(repetitions=5):
     '''
-    Creates a dataframe for the improvement of measures across days.
-    The performance is averaged within trained and untrained chords separately for each participant.
+    Creates a dataframe for the learning of measures across days and repetitions.
+    The performance is averaged within trained and untrained chords.
     '''
-
+    df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
     ANA = pd.DataFrame()
 
     # add a repetition column the size of the dataframe:
@@ -176,9 +176,28 @@ def collapse_chords(df, repetitions=5):
     ANA['adjusted_repetition'] = (ANA['day']-1)*repetitions + ANA['repetition']
 
     # save the ANA dataframe:
-    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_collapse_chords.csv'), index=False)
+    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_repetition.csv'), index=False)
 
     return ANA
+
+def learning_across_days():
+    '''
+    Creates a dataframe for the learning of measures across days.
+    Measures are averaged across chords within trained and untrained chords.
+    '''
+    df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
+    df.replace(-1, np.nan, inplace=True)
+    ANA = pd.DataFrame()
+    
+    # make summary dataframe:
+    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+
+    # save the ANA dataframe:
+    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_day.csv'), index=False)
+
+    return ANA
+
+
 
 
         
