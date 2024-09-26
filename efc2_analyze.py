@@ -180,24 +180,6 @@ def repetition_dataframe(repetitions=5):
 
     return ANA
 
-def learning_across_days():
-    '''
-    Creates a dataframe for the learning of measures across days.
-    Measures are averaged across chords within trained and untrained chords.
-    '''
-    df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
-    df.replace(-1, np.nan, inplace=True)
-    ANA = pd.DataFrame()
-    
-    # make summary dataframe:
-    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
-
-    # save the ANA dataframe:
-    ANA.to_csv(os.path.join(ANALYSIS_PATH, 'efc2_day.csv'), index=False)
-
-    return ANA
-
-
 
 
         
