@@ -91,7 +91,7 @@ def get_MD(mov: np.ndarray, baseline_threshold: float, fGain: list[float], globa
 
     # select the portion of force from RT to end_idx-hold_time:
     force = force[RT_idx:end_idx-int(hold_time/1000*fs), :]
-
+    
     # calculate the ideal trajectory:
     c = force[-1, :] - force[0, :]
 
@@ -106,9 +106,6 @@ def get_MD(mov: np.ndarray, baseline_threshold: float, fGain: list[float], globa
         deviation.append(np.linalg.norm(tmp_force - projection))
 
     return np.mean(deviation)
-
-
-import numpy as np
 
 def get_press_sequence(mov: np.ndarray, baseline_threshold: float, fGain: list[float], global_gain: float, fs: int, hold_time: float):
     """

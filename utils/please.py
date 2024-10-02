@@ -101,4 +101,35 @@ def estimate_transition_matrix(press_matrix, states: list[int]=[1,2,3,4,5]):
     
     return transition_matrix
             
-            
+def get_trial_force(mov, fGain, global_gain, baseline_threshold, fs, t_minus=None, t_max=None):
+    
+    WAIT_EXEC = 3
+
+    # find the beginning of the execution period:
+    start_idx = np.where(mov[:, 0] == WAIT_EXEC)[0][0]
+    end_idx = np.where(mov[:, 0] == WAIT_EXEC)[0][-1]
+
+    # get the differential forces - five columns:
+    force = mov[:, 13:18]
+    
+    # apply the gains:
+    force = force * fGain * global_gain
+
+    # find the first time any finger exits the baseline zone:
+    for i in range(start_idx, end_idx+1):
+        if np.any(np.abs(force[i, :]) > baseline_threshold):
+            RT_idx = i
+            break
+    
+    if t_minus is not None:
+        start_idx = RT_idx - int(t_minus/1000*fs)
+    if t_max is not None:
+        end_idx = start_idx + int(t_max/1000*fs)
+    
+    # get the differential forces - five columns:
+    force = force[start_idx:end_idx, :]
+    t = (mov[start_idx:end_idx, 3] - mov[start_idx, 3])/1000 # time in seconds
+    if t_minus is not None:
+        t = t - t_minus/1000
+    
+    return t, force

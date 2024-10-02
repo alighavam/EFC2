@@ -11,7 +11,7 @@ my_paper = {
     'line_width': 1.2,
     'error_width': 0.7,
     
-    'font_family': 'Calibri',
+    'font_family': 'Helvetica',
     'leg_fontsize': 8,
     'title_fontsize': 10,
     'label_fontsize': 8
