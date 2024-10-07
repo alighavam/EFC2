@@ -11,6 +11,7 @@ from utils.figure_style import my_paper
 from statsmodels.stats.anova import AnovaRM
 from scipy import stats
 import random
+import matplotlib.patches as patches
 
 plt.rcParams['font.family'] = my_paper['font_family']
 # plt.rcParams['pdf.use14corefonts'] = True
@@ -73,18 +74,18 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     if measure=='MD':
         ax.set_ylim([0, 2])
         ax.set_yticks(ticks=[0, 1, 2])
-        ax.set_ylabel('mean deviation [N]')
+        ax.set_ylabel('mean deviation [N]', fontsize=my_paper['label_fontsize'])
     elif measure=='RT':
         ax.set_ylim([300, 700])
         ax.set_yticks(ticks=[300, 500, 700])
-        ax.set_ylabel('reaction time [ms]')
+        ax.set_ylabel('reaction time [ms]', fontsize=my_paper['label_fontsize'])
     elif measure=='ET':
         ax.set_ylim([0, 4000])
         ax.set_yticks(ticks=[0, 1000, 2000, 3000, 4000], labels=['0','1','2','3','4'])
-        ax.set_ylabel('execution time [s]')
+        ax.set_ylabel('execution time [s]', fontsize=my_paper['label_fontsize'])
 
     ax.set_xticks(ticks=[4.5, 12.5, 20.5, 28.5, 36.5], labels=['pre-test', 'd2', 'd3', 'd4', 'post-test'])
-    ax.set_xlabel('day')
+    ax.set_xlabel('day', fontsize=my_paper['label_fontsize'])
     ax.legend().set_visible(False)
 
     # Make it pretty:
@@ -98,6 +99,8 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
 
     ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
     ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+
+    ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
 
     fig.savefig(os.path.join(FIGURE_PATH,'efc2_learning_'+measure+'.pdf'), format='pdf', bbox_inches='tight')
     
@@ -120,7 +123,7 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     trained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==1)][measure]
     untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(trained_day5, untrained_day5)
-    print(f'day1: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'day5: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
 
     # t-tets day 5, last block:
     ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
@@ -149,7 +152,7 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     res = stats.ttest_rel(day1, day5)
     print(f't_{len(day1)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
 
-def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_max=None):
+def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_max=None, fig_size=[6, 4], days=[1,5], num_trials=3, export_fig=False, xlim=None):
     df = pd.read_csv(os.path.join(ANALYSIS_PATH, f'efc2_all.csv'))
     chords = df['chordID'].unique()
 
@@ -161,54 +164,225 @@ def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_
     # load the subject data:
     df = df[df['sn']==sn].reset_index(drop=True)
     idx = df[(df['chordID']==chord) & (df['trial_correct']==1)].index
-    df = df.iloc[idx]
+    df = df.iloc[idx].reset_index(drop=True)
+    trained = df['trained'].iloc[0]
     mov = pd.read_pickle(os.path.join(ANALYSIS_PATH, f'efc2_{sn}_mov.pkl'))
-    mov = mov.iloc[idx]
+    mov = mov.iloc[idx].reset_index(drop=True)
 
-    if trial == 'average': # get the average:
-        pass
-        # day 1:
-        # tmp_mov = mov[(mov['day']==1)]
-        # for i in range(tmp_mov.shape[0]):
+    print(f'subject {sn}, chord {chord}, trained {trained}\n')
+    if trial == 'average': # get the average of trials:
+        # loop on days:
+        for i, day in enumerate(days):
+            idx = df[(df['day']==day)].index.to_list()
+            print(f'average of day {day}')
+            ET = np.mean(df['ET'].iloc[idx])
+            MD = np.mean(df['MD'].iloc[idx])
+            print(f'mean ET: {ET}')
+            print(f'mean MD: {MD}')
+
+            # get the forces of the day and average them:
+            forces = []
+            max_length = 0
+            for trial_idx in idx:
+                fGain = [df['fGain1'].iloc[trial_idx], df['fGain2'].iloc[trial_idx], df['fGain3'].iloc[trial_idx], df['fGain4'].iloc[trial_idx], df['fGain5'].iloc[trial_idx]]
+                global_gain = df['forceGain'].iloc[trial_idx]
+                fs = 500
+                baseline_threshold = df['baselineTopThresh'].iloc[trial_idx]
+                t, force = utils.please.get_trial_force(mov['mov'].iloc[trial_idx], fGain, global_gain, baseline_threshold, fs, t_minus, t_max)
+                force = utils.please.moving_average(force, 10)
+                forces.append(force)
+                if force.shape[0] > max_length:
+                    max_length = force.shape[0]
+
+            # Zero-pad the forces to the length of the longest trial
+            padded_forces = []
+            for force in forces:
+                pad_width = max_length - force.shape[0]
+                padded_force = np.pad(force, ((0, pad_width), (0, 0)), mode='edge')
+                padded_forces.append(padded_force)
+            
+            # Compute the average force
+            average_force = np.mean(padded_forces, axis=0)
+
+            # Compute the SEM of the force
+            sem_force = np.std(padded_forces, axis=0) / np.sqrt(len(padded_forces))
+
+            # Plot the average force
+            cm = 1/2.54
+            fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
+            ax.axhline(y=2, color='#84D788', linestyle='--', label='y2')  # Horizontal dashed line at y=0
+            ax.axhline(y=-2, color='#84D788', linestyle='--', label='y-2')  # Horizontal dashed line at y=0
+            # Create a patch (a rectangle in this case)
+            rect = patches.Rectangle((-1, -1.2), 6, 2.4, linewidth=2, edgecolor='none', facecolor='#EBEBEB', label='zone')
+            ax.add_patch(rect)
+            
+            # choose appropriate t limit for a nice looking figure:
+            t = np.linspace(0, max_length / fs, max_length)
+            t_lim = utils.please.find_closest_index(t, ET/1000)
+            if xlim is not None:
+                t_lim = t_lim = utils.please.find_closest_index(t, xlim[i])
+            t = t[:t_lim]
+            average_force = average_force[:t_lim, :]
+            sem_force = sem_force[:t_lim, :]
+            for finger in range(average_force.shape[1]):
+                ax.plot(t, average_force[:, finger], label=f'f {finger+1}', color=my_paper['colors_colorblind'][finger])
+                ax.fill_between(t, average_force[:, finger] - sem_force[:, finger], average_force[:, finger] + sem_force[:, finger], color=my_paper['colors_colorblind'][finger], alpha=0.3)
+
+            ax.set_ylim([-6, 6])
+            ax.set_xlim([0, 5])
+            ax.set_yticks(ticks=[-5,0,5])
+            ax.set_xticks(ticks=[0, 1, 2, 3, 4, 5])
+            ax.set_ylabel('force [N]', fontsize=my_paper['label_fontsize'])
+            ax.set_xlabel('time [s]', fontsize=my_paper['label_fontsize'])
+            # trial day: 
+            ax.set_title(f'day {day}', fontsize=6)
+
+            # Make it pretty:
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_linewidth(1)
+            ax.spines['bottom'].set_linewidth(1)
+
+            ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
+            ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
+
+            ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
+            ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+            ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
+
+            # Show the plot
+            plt.show()
+
+            if export_fig:
+                fig.savefig(os.path.join(FIGURE_PATH, f'efc2_example_avg_{chord}_{day}.pdf'), format='pdf', bbox_inches='tight')
 
     elif trial is None: # choose random trials from each day:
-        day1 = df[(df['day']==1)].index
-        print(day1)
-        day5 = df[(df['day']==5)].index
-        # choose 5 random trials:
-        trials_day1 = random.sample(day1, k=5)
-        trials_day5 = random.sample(day5, k=5)
+        day1 = df[(df['day']==days[0])].index.to_list()
+        day5 = df[(df['day']==days[-1])].index.to_list()
+        # choose k random trials:
+        trials_day1 = random.sample(day1, k=num_trials)
+        trials_day5 = day5[-num_trials:]
+        trained = df['trained'].iloc[0]
+        print(f'subject {sn}, chord {chord}, trained {trained}\n')
+        print(f'day{days[0]}: ', trials_day1, f' day{days[-1]}: ', trials_day5, '\n')
+        ET = df['ET'].iloc[trials_day1+trials_day5]
+        MD = df['MD'].iloc[trials_day1+trials_day5]
+        print('ET:', ET.values)
+        print('MD:', MD.values)
 
         # figure setup:
         cm = 1/2.54
-        subplot_width = 3*cm  # cm
-        subplot_height = 2*cm  # cm
-        n_rows = 5
-        n_cols = 5
-        total_fig_width = n_cols * subplot_width
-        total_fig_height = n_rows * subplot_height
-
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(total_fig_width, total_fig_height))
-
-        for i in trials_day1+trials_day5:
-            fGain = [df['fGain1'].iloc[i], df['fGain2'].iloc[i], df['fGain3'].iloc[i], df['fGain4'].iloc[i], df['fGain5'].iloc[i]]
-            global_gain = df['forceGain'].iloc[i]
+        for i, trial_idx in enumerate(trials_day1+trials_day5):
+            fGain = [df['fGain1'].iloc[trial_idx], df['fGain2'].iloc[trial_idx], df['fGain3'].iloc[trial_idx], df['fGain4'].iloc[trial_idx], df['fGain5'].iloc[trial_idx]]
+            global_gain = df['forceGain'].iloc[trial_idx]
             fs = 500
-            baseline_threshold = df['baselineTopThresh'].iloc[i]
-            t, force = utils.please.get_trial_force(mov, fGain, global_gain, baseline_threshold, fs, t_minus, t_max)
+            baseline_threshold = df['baselineTopThresh'].iloc[trial_idx]
+            t, force = utils.please.get_trial_force(mov['mov'].iloc[trial_idx], fGain, global_gain, baseline_threshold, fs, t_minus, t_max)
+            force = utils.please.moving_average(force, 10)
 
             # plot:
-            ax = axes.flat[i]  # Choose the correct axis
-            ax.plot(t, force)  # Example plot
-            # ax.legend()
-            ax.set_title(f"Trial {i+1}")
-        
-        # Adjust layout to prevent overlap
-        plt.tight_layout()
+            fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
+            ax.axhline(y=2, color='#84D788', linestyle='--', label='y2')  # Horizontal dashed line at y=0
+            ax.axhline(y=-2, color='#84D788', linestyle='--', label='y-2')  # Horizontal dashed line at y=0
 
-        # Show the plot
-        plt.show()
+            for i in range(force.shape[1]):
+                plt.plot(t, force[:, i], color=color_palette[i], label=f'f {i+1}')
 
+            # Create a patch (a rectangle in this case)
+            rect = patches.Rectangle((-1, -1.2), 6, 2.4, linewidth=2, edgecolor='none', facecolor='#F0F0F0', label='zone')
+            ax.add_patch(rect)
+
+            # ax.legend(['f1', 'f2', 'f3', 'f4', 'f5'], loc='upper right', fontsize=my_paper['leg_fontsize'])
+            ax.set_ylim([-6, 6])
+            ax.set_xlim([t[0], t[-1]])
+            ax.set_yticks(ticks=[-5,0,5])
+            ax.set_xticks(ticks=[0, 1, 2, 3, 4, 5])
+            ax.set_ylabel('force [N]', fontsize=my_paper['label_fontsize'])
+            ax.set_xlabel('time [s]', fontsize=my_paper['label_fontsize'])
+            ax.set_title(f'trial {trial_idx}', fontsize=6)
+
+            # Make it pretty:
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_linewidth(1)
+            ax.spines['bottom'].set_linewidth(1)
+
+            ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
+            ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
+
+            ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
+            ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+            ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
+
+            # Show the plot
+            plt.show()
+
+    else: # if a list of trails is provided:
+        trained = df['trained'].iloc[0]
+        print(f'subject {sn}, chord {chord}, trained {trained}\n')
+        print('trials:', trial, '\n')
+        ET = df['ET'].iloc[trial]
+        MD = df['MD'].iloc[trial]
+        print('ET:', ET.values)
+        print('MD:', MD.values)
+        # tlim1 = 0
+        # tlim2 = 5
+        # if t_minus is not None:
+        #     tlim1 = -t_minus/1000
+        # if t_max is not None:
+        #     tlim2 = t_max/1000
+
+        # figure setup:
+        cm = 1/2.54
+        for i, trial_idx in enumerate(trial):
+            fGain = [df['fGain1'].iloc[trial_idx], df['fGain2'].iloc[trial_idx], df['fGain3'].iloc[trial_idx], df['fGain4'].iloc[trial_idx], df['fGain5'].iloc[trial_idx]]
+            global_gain = df['forceGain'].iloc[trial_idx]
+            fs = 500
+            baseline_threshold = df['baselineTopThresh'].iloc[trial_idx]
+            t, force = utils.please.get_trial_force(mov['mov'].iloc[trial_idx], fGain, global_gain, baseline_threshold, fs, t_minus, t_max)
+            force = utils.please.moving_average(force, 15)
+
+            # plot:
+            fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
+            ax.axhline(y=2, color='#84D788', linestyle='--', label='y2')  # Horizontal dashed line at y=0
+            ax.axhline(y=-2, color='#84D788', linestyle='--', label='y-2')  # Horizontal dashed line at y=0
+
+            for finger in range(force.shape[1]):
+                plt.plot(t, force[:,finger], label=f'f {i+1}', color=my_paper['colors_colorblind'][finger])
+            
+            # Create a patch (a rectangle in this case)
+            rect = patches.Rectangle((-1, -1.2), 6, 2.4, linewidth=2, edgecolor='none', facecolor='#F0F0F0', label='zone')
+            ax.add_patch(rect)
+
+            # ax.legend(['','','f1', 'f2', 'f3', 'f4', 'f5'], loc='upper right', fontsize=my_paper['leg_fontsize'])
+            ax.set_ylim([-6, 6])
+            ax.set_xlim([t[0], t[-1]])
+            ax.set_yticks(ticks=[-5,0,5])
+            ax.set_xticks(ticks=[0, 1, 2, 3, 4])
+            ax.set_ylabel('force [N]', fontsize=my_paper['label_fontsize'])
+            ax.set_xlabel('time [s]', fontsize=my_paper['label_fontsize'])
+            # trial day: 
+            tr_day = df['day'].iloc[trial_idx]
+            ax.set_title(f'trial {trial_idx}, day {tr_day}', fontsize=6)
+
+            # Make it pretty:
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_linewidth(1)
+            ax.spines['bottom'].set_linewidth(1)
+
+            ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
+            ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
+
+            ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
+            ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+            ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
+
+            # Show the plot
+            plt.show()
+
+            if export_fig:
+                fig.savefig(os.path.join(FIGURE_PATH, f'efc2_example_{chord}_{trial_idx}.pdf'), format='pdf', bbox_inches='tight')
 
     return df, mov
     
