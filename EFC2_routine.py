@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from utils.movload import movload
 from utils.config import *
+import utils.please
 
 def trial_routine(row):
     '''
@@ -53,7 +54,8 @@ def subject_routine(subject, smoothing_window=30, fs=500):
                 if dat['BN'][i] != oldblock:
                     print(f'Processing block {dat["BN"][i]}')
                     # load the .mov file:
-                    mov = movload(os.path.join(sub_dir,d,f'efc2_{subject}_{dat["BN"][i]:02d}.mov'))
+                    ext = int(dat['BN'][i])
+                    mov = movload(os.path.join(sub_dir,d,f'efc2_{subject}_{ext:02d}.mov'))
                     oldblock = dat['BN'][i]
                 print(f'Processing trial {dat["TN"][i]}')
                 # trial routine:
@@ -66,9 +68,12 @@ def subject_routine(subject, smoothing_window=30, fs=500):
                 day.append(int(d[-1]))
                 is_test.append(int(dir == 'testing'))
 
+                # low-pass filter the forces with movmean:
+                tmp_mov = mov[dat['TN'][i]-1]
+                tmp_mov[:,3:] = utils.please.moving_average(tmp_mov[:,3:], smoothing_window)
                 # add the mov trial in the move dataframe:
                 tmp = pd.DataFrame({'day': int(d[-1]), 'sn': subject, 'BN': dat['BN'][i], 'TN': dat['TN'][i], 'trial_correct':dat['trialCorr'][i], 
-                                    'mov': [mov[dat['TN'][i]-1]]})
+                                    'mov': [tmp_mov]})
                 df_mov = pd.concat([df_mov, tmp],ignore_index=True)
 
     # add the day and is_test columns to the dataframe:
