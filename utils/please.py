@@ -128,8 +128,73 @@ def get_trial_force(mov, fGain, global_gain, baseline_threshold, fs, t_minus=Non
     
     # get the differential forces - five columns:
     force = force[start_idx:end_idx, :]
-    t = (mov[start_idx:end_idx, 3] - mov[start_idx, 3])/1000 # time in seconds
+    t = (mov[start_idx:end_idx, 2] - mov[start_idx, 2])/1000 # time in seconds
     if t_minus is not None:
         t = t - t_minus/1000
     
     return t, force
+
+def moving_average(data, window_size):
+    """
+    Compute the moving average along the first axis of an N by K input list or np.ndarray.
+
+    Parameters:
+    data (list or np.ndarray): Input data, an N by K list or ndarray.
+    window_size (int): Size of the moving window.
+
+    Returns:
+    np.ndarray: Array of moving averages with shape (N - window_size + 1, K).
+    """
+    # if isinstance(data, list):
+    #     data = np.array(data)
+    
+    # if window_size < 1:
+    #     raise ValueError("Window size must be at least 1.")
+    # if window_size > data.shape[0]:
+    #     raise ValueError("Window size must be less than or equal to the length of the data along the first axis.")
+    
+    # # Create a window of ones, normalized by the window size
+    # window = np.ones(window_size) / window_size
+    
+    # # Apply the moving average along the first axis for each column
+    # moving_avg = np.apply_along_axis(lambda m: np.convolve(m, window, mode='valid'), axis=0, arr=data)
+
+    if isinstance(data, list):
+        data = np.array(data)
+    
+    if window_size < 1:
+        raise ValueError("Window size must be at least 1.")
+    if window_size > data.shape[0]:
+        raise ValueError("Window size must be less than or equal to the length of the data along the first axis.")
+    
+    # Create a window of ones, normalized by the window size
+    window = np.ones(window_size) / window_size
+    
+    # Apply the moving average along the first axis for each column
+    moving_avg = np.apply_along_axis(lambda m: np.convolve(m, window, mode='valid'), axis=0, arr=data)
+    
+    # Pad the result to keep the same shape as the input
+    pad_width = (window_size - 1) // 2
+    if window_size % 2 == 0:
+        pad_width_end = pad_width + 1
+    else:
+        pad_width_end = pad_width
+    
+    moving_avg_padded = np.pad(moving_avg, ((pad_width, pad_width_end), (0, 0)), mode='edge')
+    
+    return moving_avg_padded
+
+def find_closest_index(vector, value):
+    """
+    Find the index of the closest value in a vector to a given float value.
+
+    Parameters:
+    vector (np.ndarray): Input vector.
+    value (float): The value to find the closest index to.
+
+    Returns:
+    int: The index of the closest value in the vector.
+    """
+    vector = np.asarray(vector)  # Ensure the input is a NumPy array
+    index = np.argmin(np.abs(vector - value))
+    return index
