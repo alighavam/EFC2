@@ -113,25 +113,32 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     print(f'========= {measure} STATS =========')
     ANA = df.groupby(['day','sn','trained'])[['is_test','group','RT','ET','MD']].mean().reset_index()
     # t-test untrained vs. trained:
-    print('untrained vs. trained:')
+    print('"untrained vs. trained:"')
     # day 1:
     trained_day1 = ANA[(ANA['day']==1) & (ANA['trained']==1)][measure]
     untrained_day1 = ANA[(ANA['day']==1) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(trained_day1, untrained_day1)
-    print(f'day1: t_{len(trained_day1)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    day1: t_{len(trained_day1)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
     # day 5:
     trained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==1)][measure]
     untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(trained_day5, untrained_day5)
-    print(f'day5: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    day5: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
 
     # t-tets day 5, last block:
     ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
     trained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==1) & (ANA['BN']==8)][measure]
     untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0) & (ANA['BN']==8)][measure]
     res = stats.ttest_rel(trained_day5, untrained_day5)
-    print(f'day5, last block: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
-    
+    print(f'    day5, last block: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+
+    # day5 untrained vs day2 trained:
+    ANA = df.groupby(['day','sn','trained'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+    trained_day2 = ANA[(ANA['day']==2) & (ANA['trained']==1)][measure]
+    untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0)][measure]
+    res = stats.ttest_rel(trained_day2, untrained_day5, alternative='two-sided')
+    print(f'    day 5 untrained vs. day 2 trained: t_{len(trained_day2)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+
     # ANOVA trained across days:
     print()
     print(f'rm-ANOVA trained:')
@@ -152,6 +159,215 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     res = stats.ttest_rel(day1, day5)
     print(f't_{len(day1)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
 
+def specific_vs_general(measure='MD', fig_size=[8.2, 6], show_plot=False, plot_type='box'):
+    df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
+
+    # make summary dataframe:
+    df.replace(-1, np.nan, inplace=True)
+    ANA = pd.DataFrame()
+    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+    num_blocks = ANA['BN'].unique().shape[0]
+
+    # average across subjects:
+    grouped = ANA.groupby(['day', 'trained', 'BN']).agg(
+        MD_mean=('MD', 'mean'),
+        MD_sem=('MD', 'sem'),
+        RT_mean=('RT', 'mean'),
+        RT_sem=('RT', 'sem'),
+        ET_mean=('ET', 'mean'),
+        ET_sem=('ET', 'sem'),
+        len_avg=('MD', 'count')
+    ).reset_index()
+    grouped['adjusted_BN'] = (grouped['day']-1)*num_blocks + grouped['BN']
+
+    # percent improvements:
+    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+    # average day1, block 7 and 8:
+    t1 = ANA[(ANA['day'] == 1) & (ANA['trained'] == 1) & (ANA['BN'].isin([7,8]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    t5 = ANA[(ANA['day'] == 5) & (ANA['trained'] == 1) & (ANA['BN'].isin([1,2]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    u1 = ANA[(ANA['day'] == 1) & (ANA['trained'] == 0) & (ANA['BN'].isin([7,8]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    u5 = ANA[(ANA['day'] == 5) & (ANA['trained'] == 0) & (ANA['BN'].isin([1,2]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+
+    # ======================================== BOX PLOT ======================================== #
+    cm = 1/2.54  # centimeters in inches
+    fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
+
+    if plot_type == 'box':
+        # Add major gridlines in the y-axis
+        ax.grid(color='grey', axis='y', linestyle='-', linewidth=0.25, alpha=0.5)
+        ax.boxplot([t1,t5], positions=[0.8, 1.2], widths=0.2,
+                boxprops=dict(color=my_paper['colors_blue'][3]),
+                whiskerprops=dict(color=my_paper['colors_blue'][3]),
+                medianprops=dict(color=my_paper['colors_blue'][3]))
+        
+        ax.boxplot([u1,u5], positions=[4.8, 5.2], widths=0.2, 
+                boxprops=dict(color=my_paper['color_untrained']),
+                whiskerprops=dict(color=my_paper['color_untrained']),
+                medianprops=dict(color=my_paper['color_untrained']))
+
+        x = np.repeat([4.8, 5.2],len(t1)) + np.random.normal(0, 0.05, 2*len(t1))
+        y = np.concatenate([u1,u5])
+        for i in range(len(t1)):
+            ax.plot([x[i],x[i+len(t1)]], [y[i],y[i+len(t1)]], color='#FAC9B8', linewidth=0.5, zorder=1)
+        x = np.repeat([0.8, 1.2],len(t1)) + np.random.normal(0, 0.05, 2*len(t1))
+        y = np.concatenate([t1,t5])
+        for i in range(len(t1)):
+            ax.plot([x[i],x[i+len(t1)]], [y[i],y[i+len(t1)]], color='#8AC6D0', linewidth=0.5, zorder=1)
+
+    if plot_type == 'scatter':
+        # Add major gridlines in the y-axis
+        ax.grid(color='grey', axis='y', linestyle='-', linewidth=0.25, alpha=0.5)
+        x = np.repeat([0.8, 1.2],len(t1)) + np.random.normal(0, 0.05, 2*len(t1))
+        y = np.concatenate([u1,u5])
+        for i in range(len(t1)):
+            ax.plot([x[i],x[i+len(t1)]], [y[i],y[i+len(t1)]], color='#FAC9B8', linewidth=0.5, zorder=1)
+        ax.scatter(x, y, color=my_paper['color_untrained'], s=10, zorder=2)
+
+        x = np.repeat([0.8, 4.8],len(t1)) + np.random.normal(0, 0.05, 2*len(t1))
+        y = np.concatenate([t1,t5])
+        for i in range(len(t1)):
+            ax.plot([x[i],x[i+len(t1)]], [y[i],y[i+len(t1)]], color='#8AC6D0', linewidth=0.5, zorder=1)
+        ax.scatter(x, y, color=my_paper['colors_blue'][3], s=10, zorder=2)
+    
+    if measure=='MD':
+        ax.set_ylim([0, 3])
+        ax.set_yticks(ticks=[0, 1, 2, 3])
+        ax.set_ylabel('mean deviation [N]', fontsize=my_paper['label_fontsize'])
+    elif measure=='RT':
+        ax.set_ylim([300, 700])
+        ax.set_yticks(ticks=[300, 500, 700])
+        ax.set_ylabel('reaction time [ms]', fontsize=my_paper['label_fontsize'])
+    elif measure=='ET':
+        ax.set_ylim([0, 4000])
+        ax.set_yticks(ticks=[0, 1000, 2000, 3000, 4000], labels=['0','1','2','3','4'])
+        ax.set_ylabel('execution time [s]', fontsize=my_paper['label_fontsize'])
+
+    ax.set_xticks(ticks=[1,5], labels=['pre-test', 'post-test'])
+    ax.set_xlabel('day', fontsize=my_paper['label_fontsize'])
+    ax.legend().set_visible(False)
+
+    # Make it pretty:
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1)
+    ax.spines['bottom'].set_linewidth(1)
+
+    ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
+    ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
+
+    ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
+    ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+
+    ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
+
+    # fig.savefig(os.path.join(FIGURE_PATH,'efc2_imprv_'+measure+'.pdf'), format='pdf', bbox_inches='tight')
+
+    if show_plot:
+        plt.show()
+    else:
+        plt.close(fig)
+    
+def imprv(measure='MD', fig_size=[8.2, 6], show_plot=False):
+    df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
+
+    # make summary dataframe:
+    df.replace(-1, np.nan, inplace=True)
+    ANA = pd.DataFrame()
+    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+    num_blocks = ANA['BN'].unique().shape[0]
+
+    # average across subjects:
+    grouped = ANA.groupby(['day', 'trained', 'BN']).agg(
+        MD_mean=('MD', 'mean'),
+        MD_sem=('MD', 'sem'),
+        RT_mean=('RT', 'mean'),
+        RT_sem=('RT', 'sem'),
+        ET_mean=('ET', 'mean'),
+        ET_sem=('ET', 'sem'),
+        len_avg=('MD', 'count')
+    ).reset_index()
+    grouped['adjusted_BN'] = (grouped['day']-1)*num_blocks + grouped['BN']
+
+    # percent improvements:
+    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+    # average day1, block 7 and 8:
+    t1 = ANA[(ANA['day'] == 1) & (ANA['trained'] == 1) & (ANA['BN'].isin([7,8]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    t5 = ANA[(ANA['day'] == 5) & (ANA['trained'] == 1) & (ANA['BN'].isin([1,2]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    u1 = ANA[(ANA['day'] == 1) & (ANA['trained'] == 0) & (ANA['BN'].isin([7,8]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    u5 = ANA[(ANA['day'] == 5) & (ANA['trained'] == 0) & (ANA['BN'].isin([1,2]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+
+    cm = 1/2.54  # centimeters in inches
+    fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
+    trained_imprv = (t1-t5)
+    untrained_imprv = (u1-u5)
+    # Add major gridlines in the y-axis
+    # ax.grid(color='grey', axis='y', linestyle='-', linewidth=0.25, alpha=0.5)
+    ax.axhline(y=0, color=(0.8,0.8,0.8), linestyle='--', linewidth=0.5)
+    ax.boxplot([trained_imprv], positions=[1], widths=0.15,
+            boxprops=dict(color=my_paper['colors_blue'][3]),
+            whiskerprops=dict(color=my_paper['colors_blue'][3]),
+            medianprops=dict(color=my_paper['colors_blue'][3]))
+    ax.boxplot([untrained_imprv], positions=[2], widths=0.15,
+            boxprops=dict(color=my_paper['color_untrained']),
+            whiskerprops=dict(color=my_paper['color_untrained']),
+            medianprops=dict(color=my_paper['color_untrained']))
+    jitter = 0.05  # Jitter to avoid overlap
+    ax.scatter(np.ones_like(trained_imprv) * 1 + np.random.uniform(-jitter, jitter, size=trained_imprv.shape),
+               trained_imprv, color=my_paper['colors_blue'][3], zorder=2, s=4, alpha=0.5)
+    ax.scatter(np.ones_like(untrained_imprv) * 2 + np.random.uniform(-jitter, jitter, size=untrained_imprv.shape),
+               untrained_imprv, color=my_paper['color_untrained'], zorder=2, s=4, alpha=0.5)
+    
+    if measure=='MD':
+        ax.set_ylim([-1.2, 1.2])
+        ax.set_yticks(ticks=[-1.2,0,1.2])
+        ax.set_ylabel('mean deviation improvement [N]', fontsize=my_paper['label_fontsize'])
+    elif measure=='RT':
+        ax.set_ylim([-500, 500])
+        ax.set_yticks(ticks=[-500, 0, 500])
+        ax.set_ylabel('reaction time improvement [ms]', fontsize=my_paper['label_fontsize'])
+    elif measure=='ET':
+        ax.set_ylim([-3000, 3000])
+        ax.set_yticks(ticks=[-3000, 0, 3000], labels=['-3','0','3'])
+        ax.set_ylabel('execution time improvement [s]', fontsize=my_paper['label_fontsize'])
+
+    ax.set_xlim([0.8, 2.2])
+    ax.set_xticks(ticks=[1,2], labels=['trained', 'untrained'])
+    ax.legend().set_visible(False)
+
+    # Make it pretty:
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1)
+    ax.spines['bottom'].set_linewidth(1)
+
+    ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
+    ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
+
+    ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
+    ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+    ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
+
+    fig.savefig(os.path.join(FIGURE_PATH,'efc2_imprv_'+measure+'.pdf'), format='pdf', bbox_inches='tight')
+    
+    if show_plot:
+        plt.show()
+    else:
+        plt.close(fig)
+
+    # STATS:
+    print(f'========= {measure} STATS =========')
+    relative = untrained_imprv / trained_imprv
+    print(f'relative improvement: {np.mean(relative)*100:.3f} +/- {np.std(relative)/np.sqrt(len(relative))*100:.3f}')
+
+    # t-test improvement vs 0:
+    print()
+    print('trained improvement vs. 0:')
+    res = stats.ttest_1samp(trained_imprv, 0)
+    print(f'    trained: t_{len(trained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print('untrained improvement vs. 0:')
+    res = stats.ttest_1samp(untrained_imprv, 0)
+    print(f'   untrained: t_{len(untrained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    
 def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_max=None, fig_size=[6, 4], days=[1,5], num_trials=3, export_fig=False, xlim=None):
     df = pd.read_csv(os.path.join(ANALYSIS_PATH, f'efc2_all.csv'))
     chords = df['chordID'].unique()
@@ -174,6 +390,7 @@ def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_
         # loop on days:
         for i, day in enumerate(days):
             idx = df[(df['day']==day)].index.to_list()
+            # idx = idx[:10]
             print(f'average of day {day}')
             ET = np.mean(df['ET'].iloc[idx])
             MD = np.mean(df['MD'].iloc[idx])
@@ -225,7 +442,7 @@ def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_
             average_force = average_force[:t_lim, :]
             sem_force = sem_force[:t_lim, :]
             for finger in range(average_force.shape[1]):
-                ax.plot(t, average_force[:, finger], label=f'f {finger+1}', color=my_paper['colors_colorblind'][finger])
+                ax.plot(t, average_force[:, finger], label=f'f {finger+1}', color=my_paper['colors_colorblind'][finger], linewidth=0.7)
                 ax.fill_between(t, average_force[:, finger] - sem_force[:, finger], average_force[:, finger] + sem_force[:, finger], color=my_paper['colors_colorblind'][finger], alpha=0.3)
 
             ax.set_ylim([-6, 6])
@@ -254,7 +471,7 @@ def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_
             plt.show()
 
             if export_fig:
-                fig.savefig(os.path.join(FIGURE_PATH, f'efc2_example_avg_{chord}_{day}.pdf'), format='pdf', bbox_inches='tight')
+                fig.savefig(os.path.join(FIGURE_PATH, f'efc2_example_avg_{sn}_{chord}_{day}.pdf'), format='pdf', bbox_inches='tight')
 
     elif trial is None: # choose random trials from each day:
         day1 = df[(df['day']==days[0])].index.to_list()
