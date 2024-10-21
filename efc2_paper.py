@@ -303,19 +303,20 @@ def imprv(measure='MD', fig_size=[8.2, 6], show_plot=False):
     # Add major gridlines in the y-axis
     # ax.grid(color='grey', axis='y', linestyle='-', linewidth=0.25, alpha=0.5)
     ax.axhline(y=0, color=(0.8,0.8,0.8), linestyle='--', linewidth=0.5)
-    ax.boxplot([trained_imprv], positions=[1], widths=0.15,
+    ax.boxplot([trained_imprv], positions=[1], widths=0.15, zorder=1,
             boxprops=dict(color=my_paper['colors_blue'][3]),
             whiskerprops=dict(color=my_paper['colors_blue'][3]),
             medianprops=dict(color=my_paper['colors_blue'][3]))
-    ax.boxplot([untrained_imprv], positions=[2], widths=0.15,
+    ax.boxplot([untrained_imprv], positions=[2], widths=0.15, zorder=1,
             boxprops=dict(color=my_paper['color_untrained']),
             whiskerprops=dict(color=my_paper['color_untrained']),
             medianprops=dict(color=my_paper['color_untrained']))
     jitter = 0.05  # Jitter to avoid overlap
     ax.scatter(np.ones_like(trained_imprv) * 1 + np.random.uniform(-jitter, jitter, size=trained_imprv.shape),
-               trained_imprv, color=my_paper['colors_blue'][3], zorder=2, s=4, alpha=0.5)
+               trained_imprv, color=my_paper['colors_blue'][3], zorder=3, s=5, lw=0, alpha=0.3)
     ax.scatter(np.ones_like(untrained_imprv) * 2 + np.random.uniform(-jitter, jitter, size=untrained_imprv.shape),
-               untrained_imprv, color=my_paper['color_untrained'], zorder=2, s=4, alpha=0.5)
+               untrained_imprv, color=my_paper['color_untrained'], zorder=3, s=5, lw=0, alpha=0.3)
+    
     
     if measure=='MD':
         ax.set_ylim([-1.2, 1.2])
@@ -363,10 +364,10 @@ def imprv(measure='MD', fig_size=[8.2, 6], show_plot=False):
     print()
     print('trained improvement vs. 0:')
     res = stats.ttest_1samp(trained_imprv, 0)
-    print(f'    trained: t_{len(trained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    trained: t_{len(trained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.16e}')
     print('untrained improvement vs. 0:')
     res = stats.ttest_1samp(untrained_imprv, 0)
-    print(f'   untrained: t_{len(untrained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'   untrained: t_{len(untrained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.16e}')
     
 def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_max=None, fig_size=[6, 4], days=[1,5], num_trials=3, export_fig=False, xlim=None):
     df = pd.read_csv(os.path.join(ANALYSIS_PATH, f'efc2_all.csv'))
