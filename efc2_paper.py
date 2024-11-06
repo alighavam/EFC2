@@ -343,7 +343,7 @@ def imprv(measure='MD', fig_size=[8.2, 6], show_plot=False):
 
     ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
     ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
-
+    
     ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
     ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
     ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
