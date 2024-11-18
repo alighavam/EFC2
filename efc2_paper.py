@@ -118,26 +118,34 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     trained_day1 = ANA[(ANA['day']==1) & (ANA['trained']==1)][measure]
     untrained_day1 = ANA[(ANA['day']==1) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(trained_day1, untrained_day1)
-    print(f'    day1: t_{len(trained_day1)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    day1: t_{len(trained_day1)-1} = {res.statistic:.4f}, p = {res.pvalue:.16e}')
     # day 5:
     trained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==1)][measure]
     untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(trained_day5, untrained_day5)
-    print(f'    day5: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    day5: t_{len(trained_day5)-1} = {res.statistic:.4f}, p = {res.pvalue:.16e}')
 
-    # t-tets day 5, last block:
+    # t-test day 5, last block:
     ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
     trained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==1) & (ANA['BN']==8)][measure]
     untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0) & (ANA['BN']==8)][measure]
     res = stats.ttest_rel(trained_day5, untrained_day5)
-    print(f'    day5, last block: t_{len(trained_day5)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    day5, last block: t_{len(trained_day5)-1} = {res.statistic:.4f}, p = {res.pvalue:.16e}')
 
     # day5 untrained vs day2 trained:
     ANA = df.groupby(['day','sn','trained'])[['is_test','group','RT','ET','MD']].mean().reset_index()
     trained_day2 = ANA[(ANA['day']==2) & (ANA['trained']==1)][measure]
     untrained_day5 = ANA[(ANA['day']==5) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(trained_day2, untrained_day5, alternative='two-sided')
-    print(f'    day 5 untrained vs. day 2 trained: t_{len(trained_day2)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f'    day5 untrained vs. day 2 trained: t_{len(trained_day2)-1} = {res.statistic:.4f}, p = {res.pvalue:.16e}')
+
+    # t-test day5, block 1 and 2, untrained vs. trained:
+    ANA = df.groupby(['day','sn','trained','BN'])[['is_test','group','RT','ET','MD']].mean().reset_index()
+    t5 = ANA[(ANA['day'] == 5) & (ANA['trained'] == 1) & (ANA['BN'].isin([1,2]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    u5 = ANA[(ANA['day'] == 5) & (ANA['trained'] == 0) & (ANA['BN'].isin([1,2]))].groupby(['day', 'trained', 'sn']).mean()[measure].values
+    res = stats.ttest_rel(t5, u5)
+    print(f'\n"Block 1,2, day 5:"')
+    print(f'    untrained vs. trained: t_{len(t5)-1} = {res.statistic:.4f}, p = {res.pvalue:.16e}')
 
     # ANOVA trained across days:
     print()
@@ -146,8 +154,8 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     subset = ANA[(ANA['trained']==1)]
     anova = AnovaRM(data=subset, depvar=measure, subject='sn', within=['day', 'BN']).fit()
     table = anova.anova_table
-    table['Pr > F'] = table['Pr > F'].apply(lambda p: f'{p:.6f}')
-    table['F Value'] = table['F Value'].apply(lambda f: f'{f:.6f}')
+    table['Pr > F'] = table['Pr > F'].apply(lambda p: f'{p:.16e}')
+    table['F Value'] = table['F Value'].apply(lambda f: f'{f:.16e}')
     print(table)
 
     # t-test untrained day1 vs. day5:
@@ -157,7 +165,7 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
     day1 = ANA[(ANA['day']==1) & (ANA['trained']==0)][measure]
     day5 = ANA[(ANA['day']==5) & (ANA['trained']==0)][measure]
     res = stats.ttest_rel(day1, day5)
-    print(f't_{len(day1)-1} = {res.statistic:.3f}, p = {res.pvalue:.6f}')
+    print(f't_{len(day1)-1} = {res.statistic:.4f}, p = {res.pvalue:.16e}')
 
 def specific_vs_general(measure='MD', fig_size=[8.2, 6], show_plot=False, plot_type='box'):
     df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
