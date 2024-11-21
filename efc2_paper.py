@@ -41,7 +41,7 @@ def learning_figure(measure='MD', fig_size=[8.2, 6], show_plot=False):
         len_avg=('MD', 'count')
     ).reset_index()
     grouped['adjusted_BN'] = (grouped['day']-1)*num_blocks + grouped['BN']
-
+    
     cm = 1/2.54  # centimeters in inches
     fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
     
@@ -611,4 +611,81 @@ def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_
                 fig.savefig(os.path.join(FIGURE_PATH, f'efc2_example_{chord}_{trial_idx}.pdf'), format='pdf', bbox_inches='tight')
 
     return df, mov
+
+def finger_asynch(fig_size=[6, 5], show_plot=False):
     
+    df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
+
+    # get the median asynch:
+    ana = df.groupby(['day','subNum','chordID','BN','chord']).agg(
+                    MD=('MD', 'mean'),
+                    finger_asynch=('finger_asynch', 'median'),
+                    session=('session', 'first'),
+                    len_avg=('MD', 'count')
+                    ).reset_index()
+    num_blocks = ana['BN'].unique().shape[0]
+
+    # average the medians across chords:
+    grouped_chords = ana.groupby(['day', 'subNum', 'chord', 'BN']).agg(
+                                MD=('MD', 'mean'),
+                                asynch=('finger_asynch', 'mean')
+                                ).reset_index()
+    grouped_chords['asynch'] = grouped_chords['asynch'] * 1000
+
+    # average across subjects:
+    grouped = grouped_chords.groupby(['day', 'chord', 'BN']).agg(
+                                    MD_mean=('MD', 'mean'),
+                                    MD_sem=('MD', 'sem'),
+                                    asynch_mean=('asynch', 'mean'),
+                                    asynch_sem=('asynch', 'sem')
+                                    ).reset_index()
+    grouped['adjusted_BN'] = (grouped['day']-1)*num_blocks + grouped['BN']
+
+    fig_size=[6, 5]
+    cm = 1/2.54  # centimeters in inches
+    fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
+
+    # ========= Untrained =========
+    subset = grouped[(grouped['chord']=='untrained')]
+    sns.lineplot(data=subset, x='adjusted_BN', y='MD_mean', hue='day',
+                        marker='none', markersize=my_paper['marker_size'], linewidth=my_paper['line_width'], 
+                        palette=[my_paper['color_untrained']], markeredgecolor=my_paper['color_untrained'], ax=ax)
+    for day in subset['day'].unique():
+        ax.fill_between(subset[subset['day']==day]['adjusted_BN'], 
+                subset[subset['day']==day]['MD_mean'] - subset[subset['day']==day]['MD_sem'], 
+                subset[subset['day']==day]['MD_mean'] + subset[subset['day']==day]['MD_sem'], 
+                    color=my_paper['color_untrained'], alpha=0.3, edgecolor='none')
+        
+    # ========= Trained =========
+    subset = grouped[(grouped['chord']=='trained')]
+    sns.lineplot(data=subset, x='adjusted_BN', y='MD_mean', hue='day',
+                        marker='none', markersize=my_paper['marker_size'], linewidth=my_paper['line_width'], 
+                        palette=[my_paper['colors_blue'][3]], markeredgecolor=my_paper['colors_blue'][3], ax=ax)
+    # plt.errorbar(subset['adjusted_BN'], subset[measure+'_mean'], yerr=subset[measure+'_sem'],
+    #             fmt='none', ecolor=my_paper['colors_blue'][3], capsize=0, elinewidth=my_paper['error_width'])
+    for day in subset['day'].unique():
+        ax.fill_between(subset[subset['day']==day]['adjusted_BN'], 
+                subset[subset['day']==day]['MD_mean'] - subset[subset['day']==day]['MD_sem'], 
+                subset[subset['day']==day]['MD_mean'] + subset[subset['day']==day]['MD_sem'], 
+                color=my_paper['colors_blue'][3], alpha=0.3, edgecolor='none')
+        
+    ax.set_ylim([0, 2])
+    ax.set_yticks(ticks=[0, 1, 2])
+    ax.set_ylabel('mean deviation [N]', fontsize=my_paper['label_fontsize'])
+    ax.set_xticks(ticks=[4.5, 12.5, 20.5, 28.5, 36.5], labels=['pre-test', 'd2', 'd3', 'd4', 'post-test'])
+    ax.set_xlabel('day', fontsize=my_paper['label_fontsize'])
+    ax.legend().set_visible(False)
+
+    # Make it pretty:
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1)
+    ax.spines['bottom'].set_linewidth(1)
+
+    ax.spines["left"].set_bounds(ax.get_ylim()[0], ax.get_ylim()[-1])
+    ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[-1])
+
+    ax.tick_params(axis='x', direction='in', length=2, width=my_paper['axis_width'])
+    ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
+
+    ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])

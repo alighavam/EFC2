@@ -114,6 +114,13 @@ def make_all_dataframe(fs: int = 500, hold_time: float = 600):
     df = pd.merge(df, participants_info, on='subNum', how='left')
 
     df.rename(columns={'subNum':'sn'},inplace=True)
+
+    # add Marco's asynchrony analysis data: 
+    behav = pd.read_csv(os.path.join(ANALYSIS_PATH, 'behavioural.tsv'), sep='\t')
+    behav = behav[~(behav['TN']>50)]    # remove extra rows
+    asynch = behav['finger_asynch'].values
+    df['finger_asynch'] = asynch 
+
     df = reorder_dataframe(df)
 
     # Save the dataframe:
@@ -124,7 +131,7 @@ def reorder_dataframe(df):
     reorders the dataframe columns to make it more readable
     '''
     
-    order = ['day', 'is_test', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'trained', 'RT', 'ET', 'MD', 'press_seq', 'press_direction',
+    order = ['day', 'is_test', 'group', 'sn', 'BN', 'TN', 'trial_correct', 'chordID', 'trained', 'RT', 'ET', 'MD', 'finger_asynch', 'press_seq', 'press_direction',
              'planTime', 'execMaxTime', 'feedbackTime', 'iti', 
              'fGain1', 'fGain2', 'fGain3', 'fGain4', 'fGain5', 'forceGain', 
              'baselineTopThresh', 'extTopThresh', 'extBotThresh', 'flexTopThresh', 'flexBotThresh']
