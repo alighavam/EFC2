@@ -612,28 +612,32 @@ def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_
 
     return df, mov
 
-def finger_asynch(fig_size=[6, 5], show_plot=False):
+def finger_asynch(fig_size=[6, 5]):
+    '''
+    Get the asynchrony of figners. finger_anysch column (evaluated by Mraco Emanuel) is the difference between the activation time of the first and 
+    the last fingers that got activated. The activation time if each finger is defiend as the moment the derivative of the force crosses 20% of its peak. 
+    '''
     
     df = pd.read_csv(os.path.join(ANALYSIS_PATH, 'efc2_all.csv'))
 
     # get the median asynch:
-    ana = df.groupby(['day','subNum','chordID','BN','chord']).agg(
+    ana = df.groupby(['day','sn','chordID','BN','trained']).agg(
                     MD=('MD', 'mean'),
                     finger_asynch=('finger_asynch', 'median'),
-                    session=('session', 'first'),
+                    is_test=('is_test', 'first'),
                     len_avg=('MD', 'count')
                     ).reset_index()
     num_blocks = ana['BN'].unique().shape[0]
 
     # average the medians across chords:
-    grouped_chords = ana.groupby(['day', 'subNum', 'chord', 'BN']).agg(
+    grouped_chords = ana.groupby(['day', 'sn', 'trained', 'BN']).agg(
                                 MD=('MD', 'mean'),
                                 asynch=('finger_asynch', 'mean')
                                 ).reset_index()
     grouped_chords['asynch'] = grouped_chords['asynch'] * 1000
 
     # average across subjects:
-    grouped = grouped_chords.groupby(['day', 'chord', 'BN']).agg(
+    grouped = grouped_chords.groupby(['day', 'trained', 'BN']).agg(
                                     MD_mean=('MD', 'mean'),
                                     MD_sem=('MD', 'sem'),
                                     asynch_mean=('asynch', 'mean'),
@@ -641,37 +645,34 @@ def finger_asynch(fig_size=[6, 5], show_plot=False):
                                     ).reset_index()
     grouped['adjusted_BN'] = (grouped['day']-1)*num_blocks + grouped['BN']
 
-    fig_size=[6, 5]
     cm = 1/2.54  # centimeters in inches
     fig, ax = plt.subplots(figsize=(fig_size[0]*cm, fig_size[1]*cm))
-
+    
     # ========= Untrained =========
-    subset = grouped[(grouped['chord']=='untrained')]
-    sns.lineplot(data=subset, x='adjusted_BN', y='MD_mean', hue='day',
+    subset = grouped[(grouped['trained']==0)]
+    sns.lineplot(data=subset, x='adjusted_BN', y='asynch_mean', hue='day',
                         marker='none', markersize=my_paper['marker_size'], linewidth=my_paper['line_width'], 
                         palette=[my_paper['color_untrained']], markeredgecolor=my_paper['color_untrained'], ax=ax)
     for day in subset['day'].unique():
         ax.fill_between(subset[subset['day']==day]['adjusted_BN'], 
-                subset[subset['day']==day]['MD_mean'] - subset[subset['day']==day]['MD_sem'], 
-                subset[subset['day']==day]['MD_mean'] + subset[subset['day']==day]['MD_sem'], 
+                subset[subset['day']==day]['asynch_mean'] - subset[subset['day']==day]['asynch_sem'], 
+                subset[subset['day']==day]['asynch_mean'] + subset[subset['day']==day]['asynch_sem'], 
                     color=my_paper['color_untrained'], alpha=0.3, edgecolor='none')
         
     # ========= Trained =========
-    subset = grouped[(grouped['chord']=='trained')]
-    sns.lineplot(data=subset, x='adjusted_BN', y='MD_mean', hue='day',
+    subset = grouped[(grouped['trained']==1)]
+    sns.lineplot(data=subset, x='adjusted_BN', y='asynch_mean', hue='day',
                         marker='none', markersize=my_paper['marker_size'], linewidth=my_paper['line_width'], 
                         palette=[my_paper['colors_blue'][3]], markeredgecolor=my_paper['colors_blue'][3], ax=ax)
-    # plt.errorbar(subset['adjusted_BN'], subset[measure+'_mean'], yerr=subset[measure+'_sem'],
-    #             fmt='none', ecolor=my_paper['colors_blue'][3], capsize=0, elinewidth=my_paper['error_width'])
     for day in subset['day'].unique():
         ax.fill_between(subset[subset['day']==day]['adjusted_BN'], 
-                subset[subset['day']==day]['MD_mean'] - subset[subset['day']==day]['MD_sem'], 
-                subset[subset['day']==day]['MD_mean'] + subset[subset['day']==day]['MD_sem'], 
+                subset[subset['day']==day]['asynch_mean'] - subset[subset['day']==day]['asynch_sem'], 
+                subset[subset['day']==day]['asynch_mean'] + subset[subset['day']==day]['asynch_sem'], 
                 color=my_paper['colors_blue'][3], alpha=0.3, edgecolor='none')
-        
-    ax.set_ylim([0, 2])
-    ax.set_yticks(ticks=[0, 1, 2])
-    ax.set_ylabel('mean deviation [N]', fontsize=my_paper['label_fontsize'])
+    
+    ax.set_ylim([0, 1000])
+    ax.set_yticks(ticks=[0, 500, 1000])
+    ax.set_ylabel('median asynchrony [ms]', fontsize=my_paper['label_fontsize'])
     ax.set_xticks(ticks=[4.5, 12.5, 20.5, 28.5, 36.5], labels=['pre-test', 'd2', 'd3', 'd4', 'post-test'])
     ax.set_xlabel('day', fontsize=my_paper['label_fontsize'])
     ax.legend().set_visible(False)
@@ -689,3 +690,54 @@ def finger_asynch(fig_size=[6, 5], show_plot=False):
     ax.tick_params(axis='y', direction='in', length=2, width=my_paper['axis_width'])
 
     ax.tick_params(axis='both', labelsize=my_paper['tick_fontsize'])
+    plt.show()
+
+
+    # ====================== STATS ======================:
+    # asynch on first two blocks of day 1:
+    # get the median asynch:
+    ana = df.groupby(['day','sn','chordID','trained','BN']).agg(
+                    MD=('MD', 'mean'),
+                    finger_asynch=('finger_asynch', 'median'),
+                    is_test=('is_test', 'first'),
+                    len_avg=('MD', 'count')
+                    ).reset_index()
+
+    # average the medians across chords:
+    grouped = ana.groupby(['day', 'sn', 'trained', 'BN']).agg(
+                                MD=('MD', 'mean'),
+                                asynch=('finger_asynch', 'mean')
+                                ).reset_index()
+    grouped['asynch'] = grouped['asynch'] * 1000
+
+    rows = (grouped['day']==1) & (grouped['BN']<=2)
+    trained = np.mean(grouped[rows & (grouped['trained']==1)]['asynch'])
+    sem_trained = np.mean(grouped[rows & (grouped['trained']==1) & (grouped['day']==1)]['asynch']) / np.sqrt(len(grouped[rows & (grouped['trained']==1)]))
+    untrained = np.mean(grouped[rows & (grouped['trained']==0)]['asynch'])
+    sem_untrained = np.mean(grouped[rows & (grouped['trained']==0)]['asynch']) / np.sqrt(len(grouped[rows & (grouped['trained']==0)]))
+    print(f'day 1, run 1,2:')
+    print(f'    trained: {trained:.6}ms +- {sem_trained:.6}')
+    print(f'    untrained: {untrained:.6}ms +- {sem_untrained:.6}')
+
+    # get the median asynch:
+    ana = df.groupby(['day','sn','chordID','trained']).agg(
+                    MD=('MD', 'mean'),
+                    finger_asynch=('finger_asynch', 'median'),
+                    is_test=('is_test', 'first'),
+                    len_avg=('MD', 'count')
+                    ).reset_index()
+
+    # average the medians across chords:
+    grouped = ana.groupby(['day', 'sn', 'trained']).agg(
+                                MD=('MD', 'mean'),
+                                asynch=('finger_asynch', 'mean')
+                                ).reset_index()
+    grouped['asynch'] = grouped['asynch'] * 1000
+
+    avg_day5_trained = np.mean(grouped[(grouped['trained']==1) & (grouped['day']==5)]['asynch'])
+    sem_trained = np.mean(grouped[(grouped['trained']==1) & (grouped['day']==5)]['asynch']) / np.sqrt(len(grouped[(grouped['trained']==1) & (grouped['day']==5)]))
+    avg_day5_untrained = np.mean(grouped[(grouped['trained']==0) & (grouped['day']==5)]['asynch'])
+    sem_untrained = np.mean(grouped[(grouped['trained']==0) & (grouped['day']==5)]['asynch']) / np.sqrt(len(grouped[(grouped['trained']==0) & (grouped['day']==5)]))
+    print(f'\nday 5:')
+    print(f'    trained: {avg_day5_trained:.6}ms +- {sem_trained:.6}')
+    print(f'    untrained: {avg_day5_untrained:.6}ms +- {sem_untrained:.6}')
