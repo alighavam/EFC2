@@ -376,6 +376,12 @@ def imprv(measure='MD', fig_size=[8.2, 6], show_plot=False):
     print('untrained improvement vs. 0:')
     res = stats.ttest_1samp(untrained_imprv, 0)
     print(f'   untrained: t_{len(untrained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.16e}')
+
+    # t-test trained vs. untrained:
+    print()
+    print('trained vs. untrained improvement:')
+    res = stats.ttest_rel(trained_imprv, untrained_imprv)
+    print(f'    t_{len(trained_imprv)-1} = {res.statistic:.3f}, p = {res.pvalue:.16e}')
     
 def plot_trial_example(sn=None, chord=None, trial=None, fs=500, t_minus=None, t_max=None, fig_size=[6, 4], days=[1,5], num_trials=3, export_fig=False, xlim=None):
     df = pd.read_csv(os.path.join(ANALYSIS_PATH, f'efc2_all.csv'))
