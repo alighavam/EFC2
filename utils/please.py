@@ -197,4 +197,5 @@ def find_closest_index(vector, value):
     """
     vector = np.asarray(vector)  # Ensure the input is a NumPy array
     index = np.argmin(np.abs(vector - value))
+    
     return index
